@@ -1,0 +1,13 @@
+[build]
+  command = "next build"
+  publish = ".next"
+
+# Official Next.js runtime — creates the serverless functions that serve the
+# App Router pages and the /api/stocks route. Without this, Netlify has no
+# routable output and every URL 404s ("Page not found").
+[[plugins]]
+  package = "@netlify/plugin-nextjs"
+
+[build.environment]
+  # Next.js 16 requires Node 20+.
+  NODE_VERSION = "20"
