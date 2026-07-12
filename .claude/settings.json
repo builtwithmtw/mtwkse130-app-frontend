@@ -1,0 +1,23 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm -v)",
+      "Bash(npx -v)",
+      "Bash(rm -rf psx-scaffold)",
+      "Bash(npx --yes create-next-app@latest psx-scaffold --ts --tailwind --eslint --app --src-dir --import-alias \"@/*\" --use-npm --no-turbopack --yes)",
+      "Bash(mv /private/tmp/claude-502/-Users-developer-Downloads-Apps-myapps-mtwkse130-app-frontend/7d1b8d9e-ced4-4cc5-92f9-f1bb800bc7cc/scratchpad/psx-scaffold/.git /Users/developer/Downloads/Apps/myapps/mtwkse130-app-frontend/.git)",
+      "Bash(git -C /Users/developer/Downloads/Apps/myapps/mtwkse130-app-frontend status --short)",
+      "Bash(npx --yes shadcn@latest init -d -y)",
+      "Bash(npx --yes shadcn@latest add checkbox label input table badge skeleton separator -y)",
+      "Bash(node -e ' *)",
+      "Bash(node --input-type=module -e ' *)",
+      "Bash(npx tsc *)",
+      "WebFetch(domain:www.capitalstake.com)",
+      "WebFetch(domain:eodhd.com)",
+      "Bash(curl -s --max-time 25 \"https://dps.psx.com.pk/timeseries/eod/MEBL\" -H \"User-Agent: Mozilla/5.0\" -o /tmp/mebl.json -w \"HTTP %{http_code}  size=%{size_download}\\\\n\")",
+      "Bash(python3 -c ' *)",
+      "Bash(node -e \"console.log\\('table', require\\('@tanstack/react-table/package.json'\\).version\\); console.log\\('next', require\\('next/package.json'\\).version\\)\")",
+      "Bash(gh auth *)"
+    ]
+  }
+}
