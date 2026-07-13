@@ -68,6 +68,7 @@ export function FilterSidebar({ filters, onChange, pinnedCount }: Props) {
                 ? "cursor-not-allowed opacity-50"
                 : "cursor-pointer",
             )}
+            title="Show pinned tickers at the top of the table"
           >
             <Pin className="size-4 shrink-0 text-brand" />
             <span className="flex-1 text-[13px] font-medium">
@@ -79,10 +80,10 @@ export function FilterSidebar({ filters, onChange, pinnedCount }: Props) {
               )}
             </span>
             <Checkbox
-              checked={filters.pinnedOnly}
+              checked={filters.pinnedFirst}
               disabled={pinnedCount === 0}
               onCheckedChange={(v) =>
-                onChange({ ...filters, pinnedOnly: v === true })
+                onChange({ ...filters, pinnedFirst: v === true })
               }
             />
           </label>

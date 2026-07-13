@@ -62,7 +62,8 @@ export const BLUECHIP_MIN_MARKET_CAP = 100e9;
 /** Filter state shared between the sidebar and the table. */
 export type Filters = {
   shariahOnly: boolean;
-  pinnedOnly: boolean;
+  /** Float pinned tickers to the top of the table. Not a filter — nothing is hidden. */
+  pinnedFirst: boolean;
   bluechipOnly: boolean;
   sectors: Sector[]; // empty = all sectors
 };

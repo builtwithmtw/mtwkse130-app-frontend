@@ -10,7 +10,7 @@ import { StockTable } from "./StockTable";
 
 const INITIAL_FILTERS: Filters = {
   shariahOnly: true,
-  pinnedOnly: false,
+  pinnedFirst: true,
   bluechipOnly: false,
   sectors: [],
 };
@@ -23,7 +23,6 @@ export function Screener() {
   const filtered = useMemo(() => {
     const stocks = data ?? [];
     return stocks.filter((s) => {
-      if (filters.pinnedOnly && !pinned.has(s.ticker)) return false;
       if (filters.shariahOnly && !s.isShariah) return false;
       // Unknown market cap can't clear the bar, so it fails the filter.
       if (
@@ -35,7 +34,7 @@ export function Screener() {
         return false;
       return true;
     });
-  }, [data, filters, pinned]);
+  }, [data, filters]);
 
   return (
     <div className="flex h-full flex-1 flex-col overflow-hidden">
@@ -66,6 +65,7 @@ export function Screener() {
                 isLoading={isLoading}
                 showShariahBadge={!filters.shariahOnly}
                 pinned={pinned}
+                pinnedFirst={filters.pinnedFirst}
                 onTogglePin={togglePin}
               />
             </div>

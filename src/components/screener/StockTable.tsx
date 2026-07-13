@@ -42,12 +42,14 @@ type Props = {
   // (when it's on, every row is Shariah, so the marker would be redundant).
   showShariahBadge: boolean;
   pinned: Set<string>;
+  /** When on, pinned rows float to the top; when off, they sort like any other row. */
+  pinnedFirst: boolean;
   onTogglePin: (ticker: string) => void;
 };
 
 // Pinned rows float to the top of whatever the user sorted by, so this sort
-// descriptor is always applied ahead of their sorting state rather than
-// living in it (it isn't theirs to toggle off).
+// descriptor is applied ahead of their sorting state rather than living in it
+// (it isn't theirs to toggle from the column headers).
 const PINNED_SORT = { id: "pinned", desc: true } as const;
 
 // Fixed row height (px) — matches the `h-14` on every row so partial pages and
@@ -108,6 +110,7 @@ export function StockTable({
   isLoading,
   showShariahBadge,
   pinned,
+  pinnedFirst,
   onTogglePin,
 }: Props) {
   // Default: sort by 1M performance descending (blanks sink to the bottom).
@@ -245,8 +248,8 @@ export function StockTable({
   // identity, and a fresh one each render would re-run them, re-trigger
   // autoResetPageIndex, and loop forever.
   const effectiveSorting = useMemo<SortingState>(
-    () => [PINNED_SORT, ...sorting],
-    [sorting],
+    () => (pinnedFirst ? [PINNED_SORT, ...sorting] : sorting),
+    [pinnedFirst, sorting],
   );
 
   const table = useReactTable({
@@ -259,7 +262,7 @@ export function StockTable({
       setSorting((prev) => {
         const next =
           typeof updater === "function"
-            ? updater([PINNED_SORT, ...prev])
+            ? updater(pinnedFirst ? [PINNED_SORT, ...prev] : prev)
             : updater;
         return next.filter((s) => s.id !== PINNED_SORT.id);
       }),
