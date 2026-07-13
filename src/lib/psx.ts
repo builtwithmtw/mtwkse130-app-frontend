@@ -14,6 +14,9 @@ import { TICKERS } from "./seed";
 const EOD_URL = (t: string) =>
   `https://dps.psx.com.pk/timeseries/eod/${encodeURIComponent(t)}`;
 
+const COMPANY_URL = (t: string) =>
+  `https://dps.psx.com.pk/company/${encodeURIComponent(t)}`;
+
 const DAY = 86_400_000; // ms in a day
 const EMPTY_PERF: Performance = {
   d1: null,
@@ -45,6 +48,31 @@ async function fetchEod(ticker: string): Promise<Point[]> {
     .map((r) => ({ t: r[0] * 1000, close: r[1] }))
     .filter((p) => Number.isFinite(p.t) && Number.isFinite(p.close) && p.close > 0)
     .sort((a, b) => a.t - b.t); // ascending by date
+}
+
+/**
+ * Shares outstanding, scraped from the company page's Equity Profile:
+ *   <div class="stats_label">Shares</div><div class="stats_value">1,800,554,652</div>
+ *
+ * The EOD feed carries no share count, and PSX exposes no JSON endpoint for it.
+ * The page also prints its own "Market Cap", but we derive ours from this and
+ * the latest close so it stays consistent with the Price column.
+ */
+async function fetchShares(ticker: string): Promise<number | null> {
+  const res = await fetch(COMPANY_URL(ticker), {
+    headers: { "User-Agent": "Mozilla/5.0", Accept: "text/html" },
+    next: { revalidate: 86_400 }, // share counts move far more slowly than prices
+  });
+  if (!res.ok) throw new Error(`PSX ${ticker}: company HTTP ${res.status}`);
+
+  const html = await res.text();
+  const match = html.match(
+    /stats_label">Shares<\/div>\s*<div class="stats_value">([\d,]+)</i,
+  );
+  if (!match) return null;
+
+  const shares = Number(match[1].replace(/,/g, ""));
+  return Number.isFinite(shares) && shares > 0 ? shares : null;
 }
 
 /**
@@ -95,12 +123,31 @@ async function buildStock({
   sector: Sector;
 }): Promise<Stock> {
   let perf = EMPTY_PERF;
-  try {
-    perf = computePerformance(await fetchEod(ticker));
-  } catch {
-    // Missing/failed ticker still shows in the table with "—" performance.
+  let price: number | null = null;
+  let shares: number | null = null;
+
+  // Settled, not all-or-nothing: a company page that fails to parse shouldn't
+  // cost us the prices, and vice versa.
+  const [eod, equity] = await Promise.allSettled([
+    fetchEod(ticker),
+    fetchShares(ticker),
+  ]);
+
+  if (eod.status === "fulfilled") {
+    const points = eod.value;
+    perf = computePerformance(points);
+    price = points.length > 0 ? points[points.length - 1].close : null;
   }
-  return { ticker, sector, isShariah: isShariahSymbol(ticker), perf };
+  if (equity.status === "fulfilled") shares = equity.value;
+
+  return {
+    ticker,
+    sector,
+    isShariah: isShariahSymbol(ticker),
+    price,
+    marketCap: price !== null && shares !== null ? price * shares : null,
+    perf,
+  };
 }
 
 /** Run `fn` over `items` with at most `limit` in flight at once. */

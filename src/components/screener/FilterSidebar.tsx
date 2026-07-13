@@ -1,18 +1,24 @@
 "use client";
 
-import { ShieldCheck } from "lucide-react";
+import { Gem, Pin, ShieldCheck } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
-import { SECTORS, type Filters, type Sector } from "@/lib/types";
+import {
+  BLUECHIP_MIN_MARKET_CAP,
+  SECTORS,
+  type Filters,
+  type Sector,
+} from "@/lib/types";
 import { SECTOR_TICKERS } from "@/lib/seed";
 
 type Props = {
   filters: Filters;
   onChange: (next: Filters) => void;
+  pinnedCount: number;
 };
 
-export function FilterSidebar({ filters, onChange }: Props) {
+export function FilterSidebar({ filters, onChange, pinnedCount }: Props) {
   function toggleSector(sector: Sector, checked: boolean) {
     const set = new Set(filters.sectors);
     if (checked) set.add(sector);
@@ -23,17 +29,64 @@ export function FilterSidebar({ filters, onChange }: Props) {
   return (
     <aside className="w-full shrink-0 lg:w-96">
       <div className="flex flex-col rounded-xl border bg-card">
-        {/* Shariah toggle — compact single-line row */}
-        <label className="flex cursor-pointer select-none items-center gap-2 px-3 py-2.5">
-          <ShieldCheck className="size-4 text-brand" />
-          <span className="flex-1 text-sm font-medium">Shariah Only</span>
-          <Checkbox
-            checked={filters.shariahOnly}
-            onCheckedChange={(v) =>
-              onChange({ ...filters, shariahOnly: v === true })
-            }
-          />
-        </label>
+        {/* Shariah + Pinned + Blue chip toggles share one row */}
+        <div className="flex items-stretch">
+          <label className="flex flex-1 cursor-pointer select-none items-center gap-1.5 px-2.5 py-2.5">
+            <ShieldCheck className="size-4 shrink-0 text-brand" />
+            <span className="flex-1 text-[13px] font-medium">Shariah</span>
+            <Checkbox
+              checked={filters.shariahOnly}
+              onCheckedChange={(v) =>
+                onChange({ ...filters, shariahOnly: v === true })
+              }
+            />
+          </label>
+
+          <Separator orientation="vertical" />
+
+          <label
+            className="flex flex-1 cursor-pointer select-none items-center gap-1.5 px-2.5 py-2.5"
+            title={`Market cap over ${BLUECHIP_MIN_MARKET_CAP / 1e9}B PKR`}
+          >
+            <Gem className="size-4 shrink-0 text-brand" />
+            <span className="flex-1 text-[13px] font-medium">Blue chip</span>
+            <Checkbox
+              checked={filters.bluechipOnly}
+              onCheckedChange={(v) =>
+                onChange({ ...filters, bluechipOnly: v === true })
+              }
+            />
+          </label>
+
+          <Separator orientation="vertical" />
+
+          {/* Inert until the user has pinned something */}
+          <label
+            className={cn(
+              "flex flex-1 select-none items-center gap-1.5 px-2.5 py-2.5",
+              pinnedCount === 0
+                ? "cursor-not-allowed opacity-50"
+                : "cursor-pointer",
+            )}
+          >
+            <Pin className="size-4 shrink-0 text-brand" />
+            <span className="flex-1 text-[13px] font-medium">
+              Pinned
+              {pinnedCount > 0 && (
+                <span className="ml-1 text-xs tabular-nums text-muted-foreground">
+                  {pinnedCount}
+                </span>
+              )}
+            </span>
+            <Checkbox
+              checked={filters.pinnedOnly}
+              disabled={pinnedCount === 0}
+              onCheckedChange={(v) =>
+                onChange({ ...filters, pinnedOnly: v === true })
+              }
+            />
+          </label>
+        </div>
 
         <Separator />
 

@@ -19,6 +19,7 @@ import {
   ChevronRight,
   ChevronsUpDown,
   Loader2,
+  Pin,
   Search,
   X,
 } from "lucide-react";
@@ -40,7 +41,14 @@ type Props = {
   // Show the 🕌 marker on Shariah tickers only when the Shariah filter is off
   // (when it's on, every row is Shariah, so the marker would be redundant).
   showShariahBadge: boolean;
+  pinned: Set<string>;
+  onTogglePin: (ticker: string) => void;
 };
+
+// Pinned rows float to the top of whatever the user sorted by, so this sort
+// descriptor is always applied ahead of their sorting state rather than
+// living in it (it isn't theirs to toggle off).
+const PINNED_SORT = { id: "pinned", desc: true } as const;
 
 // Fixed row height (px) — matches the `h-14` on every row so partial pages and
 // empty states can reserve exactly a full page's height.
@@ -48,6 +56,19 @@ const ROW_HEIGHT = 56;
 
 function formatPct(v: number) {
   return `${v > 0 ? "+" : ""}${v.toFixed(1)}%`;
+}
+
+const priceFormatter = new Intl.NumberFormat("en-PK", {
+  maximumFractionDigits: 0,
+});
+
+// Market caps are large, so abbreviate rather than print 13 digits: 1.44T,
+// 989B, 45M. Trillions keep 2 decimals — rounding them whole would collapse
+// every mega cap to "1T" — while B and M read as round numbers.
+function formatMarketCap(v: number) {
+  if (v >= 1e12) return `${(v / 1e12).toFixed(2)}T`;
+  const [divisor, suffix] = v >= 1e9 ? [1e9, "B"] : [1e6, "M"];
+  return `${Math.round(v / divisor).toLocaleString("en-US")}${suffix}`;
 }
 
 function PerfPill({ value }: { value: number | null | undefined }) {
@@ -82,7 +103,13 @@ const searchFilter: FilterFn<Stock> = (row, _columnId, value: string) => {
   );
 };
 
-export function StockTable({ data, isLoading, showShariahBadge }: Props) {
+export function StockTable({
+  data,
+  isLoading,
+  showShariahBadge,
+  pinned,
+  onTogglePin,
+}: Props) {
   // Default: sort by 1M performance descending (blanks sink to the bottom).
   const [sorting, setSorting] = useState<SortingState>([
     { id: "m1", desc: true },
@@ -105,6 +132,35 @@ export function StockTable({ data, isLoading, showShariahBadge }: Props) {
     });
 
     return [
+      {
+        id: "pinned",
+        accessorFn: (row) => (pinned.has(row.ticker) ? 1 : 0),
+        header: "",
+        cell: ({ row }) => {
+          const isPinned = pinned.has(row.original.ticker);
+          return (
+            <button
+              type="button"
+              onClick={() => onTogglePin(row.original.ticker)}
+              title={isPinned ? "Unpin ticker" : "Pin ticker"}
+              aria-label={isPinned ? "Unpin ticker" : "Pin ticker"}
+              aria-pressed={isPinned}
+              className="inline-flex items-center justify-center rounded-md p-1 transition-colors hover:bg-accent"
+            >
+              <Pin
+                className={cn(
+                  "size-4 transition-colors",
+                  isPinned
+                    ? "fill-brand text-brand"
+                    : "text-muted-foreground/40 hover:text-muted-foreground",
+                )}
+              />
+            </button>
+          );
+        },
+        enableGlobalFilter: false,
+        meta: { align: "center" as const, unsortable: true as const },
+      },
       {
         id: "ticker",
         accessorKey: "ticker",
@@ -130,19 +186,83 @@ export function StockTable({ data, isLoading, showShariahBadge }: Props) {
         ),
         meta: { align: "left" as const },
       },
+      {
+        id: "price",
+        accessorFn: (row) => row.price ?? undefined,
+        header: "Price",
+        cell: (ctx) => {
+          const price = ctx.getValue<number | undefined>();
+          return (
+            <span
+              className={cn(
+                "text-sm tabular-nums",
+                price == null ? "text-muted-foreground" : "font-medium",
+              )}
+            >
+              {price == null ? "—" : priceFormatter.format(price)}
+            </span>
+          );
+        },
+        sortDescFirst: true,
+        sortUndefined: "last",
+        meta: { align: "right" as const },
+      },
+      {
+        id: "marketCap",
+        accessorFn: (row) => row.marketCap ?? undefined,
+        header: "Mkt Cap",
+        cell: (ctx) => {
+          const cap = ctx.getValue<number | undefined>();
+          return (
+            <span
+              className={cn(
+                "text-sm tabular-nums",
+                cap == null ? "text-muted-foreground" : "font-medium",
+              )}
+              title={
+                cap == null
+                  ? undefined
+                  : `PKR ${Math.round(cap).toLocaleString("en-US")}`
+              }
+            >
+              {cap == null ? "—" : formatMarketCap(cap)}
+            </span>
+          );
+        },
+        sortDescFirst: true,
+        sortUndefined: "last",
+        meta: { align: "right" as const },
+      },
       perfColumn("d1", "1D"),
       perfColumn("m1", "1M"),
       perfColumn("m6", "6M"),
       perfColumn("ytd", "YTD"),
       perfColumn("y5", "5Y"),
     ];
-  }, [showShariahBadge]);
+  }, [showShariahBadge, pinned, onTogglePin]);
+
+  // Must be memoized: TanStack keys its row-model memos on this array's
+  // identity, and a fresh one each render would re-run them, re-trigger
+  // autoResetPageIndex, and loop forever.
+  const effectiveSorting = useMemo<SortingState>(
+    () => [PINNED_SORT, ...sorting],
+    [sorting],
+  );
 
   const table = useReactTable({
     data,
     columns,
-    state: { sorting, globalFilter: search },
-    onSortingChange: setSorting,
+    state: { sorting: effectiveSorting, globalFilter: search },
+    // The pinned sort is implicit, so strip it back out before it reaches the
+    // user's sorting state — otherwise it would accumulate on every toggle.
+    onSortingChange: (updater) =>
+      setSorting((prev) => {
+        const next =
+          typeof updater === "function"
+            ? updater([PINNED_SORT, ...prev])
+            : updater;
+        return next.filter((s) => s.id !== PINNED_SORT.id);
+      }),
     onGlobalFilterChange: setSearch,
     globalFilterFn: searchFilter,
     initialState: { pagination: { pageSize: 12 } },
@@ -159,7 +279,7 @@ export function StockTable({ data, isLoading, showShariahBadge }: Props) {
   const pageSize = table.getState().pagination.pageSize;
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border bg-card">
+    <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border bg-card max-lg:min-h-128">
       {/* Indeterminate loading bar while the PSX data is being fetched. */}
       {isLoading && (
         <div
@@ -210,10 +330,15 @@ export function StockTable({ data, isLoading, showShariahBadge }: Props) {
             {table.getHeaderGroups().map((hg) => (
               <TableRow key={hg.id} className="hover:bg-transparent">
                 {hg.headers.map((header) => {
-                  const align =
-                    (header.column.columnDef.meta as { align?: string })
-                      ?.align ?? "left";
+                  const meta = header.column.columnDef.meta as {
+                    align?: string;
+                    unsortable?: boolean;
+                  };
+                  const align = meta?.align ?? "left";
                   const sorted = header.column.getIsSorted();
+                  if (meta?.unsortable) {
+                    return <TableHead key={header.id} className="h-10 w-9" />;
+                  }
                   return (
                     <TableHead
                       key={header.id}
@@ -289,6 +414,7 @@ export function StockTable({ data, isLoading, showShariahBadge }: Props) {
                           className={cn(
                             "whitespace-nowrap py-2.5",
                             align === "right" && "text-right",
+                            align === "center" && "text-center",
                           )}
                         >
                           {flexRender(

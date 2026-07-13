@@ -17,7 +17,12 @@
       "Bash(curl -s --max-time 25 \"https://dps.psx.com.pk/timeseries/eod/MEBL\" -H \"User-Agent: Mozilla/5.0\" -o /tmp/mebl.json -w \"HTTP %{http_code}  size=%{size_download}\\\\n\")",
       "Bash(python3 -c ' *)",
       "Bash(node -e \"console.log\\('table', require\\('@tanstack/react-table/package.json'\\).version\\); console.log\\('next', require\\('next/package.json'\\).version\\)\")",
-      "Bash(gh auth *)"
+      "Bash(gh auth *)",
+      "Bash(node -e \"const p=require\\('./package.json'\\); console.log\\(JSON.stringify\\({scripts:p.scripts, engines:p.engines, deps:{next:p.dependencies.next}}, null, 2\\)\\)\")",
+      "Bash(curl -s -H \"User-Agent: Mozilla/5.0\" \"https://dps.psx.com.pk/company/MEBL\")",
+      "Bash(curl -s -H \"User-Agent: Mozilla/5.0\" \"https://dps.psx.com.pk/company/MEBL\" -o mebl.html)",
+      "Bash(python3 -)",
+      "Bash(curl -s -H \"User-Agent: Mozilla/5.0\" \"https://dps.psx.com.pk/timeseries/eod/MEBL\")"
     ]
   }
 }

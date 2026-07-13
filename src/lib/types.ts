@@ -46,11 +46,23 @@ export type Stock = {
   ticker: string;
   sector: Sector;
   isShariah: boolean;
+  /** Latest end-of-day close, in PKR. `null` when the ticker has no history. */
+  price: number | null;
+  /** Shares outstanding × latest close, in PKR. `null` if either is missing. */
+  marketCap: number | null;
   perf: Performance;
 };
+
+/**
+ * A "blue chip" is any ticker whose market cap clears this bar (in PKR).
+ * Tune here — it's the only definition the screener uses.
+ */
+export const BLUECHIP_MIN_MARKET_CAP = 100e9;
 
 /** Filter state shared between the sidebar and the table. */
 export type Filters = {
   shariahOnly: boolean;
+  pinnedOnly: boolean;
+  bluechipOnly: boolean;
   sectors: Sector[]; // empty = all sectors
 };

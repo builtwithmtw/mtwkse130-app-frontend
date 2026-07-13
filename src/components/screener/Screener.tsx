@@ -2,35 +2,46 @@
 
 import { useMemo, useState } from "react";
 import { useStocks } from "@/hooks/useStocks";
-import type { Filters } from "@/lib/types";
+import { usePinnedTickers } from "@/hooks/usePinnedTickers";
+import { BLUECHIP_MIN_MARKET_CAP, type Filters } from "@/lib/types";
 import { Header } from "./Header";
 import { FilterSidebar } from "./FilterSidebar";
 import { StockTable } from "./StockTable";
 
 const INITIAL_FILTERS: Filters = {
   shariahOnly: true,
+  pinnedOnly: false,
+  bluechipOnly: false,
   sectors: [],
 };
 
 export function Screener() {
   const { data, isLoading, isError, refetch } = useStocks();
   const [filters, setFilters] = useState<Filters>(INITIAL_FILTERS);
+  const { pinned, togglePin } = usePinnedTickers();
 
   const filtered = useMemo(() => {
     const stocks = data ?? [];
     return stocks.filter((s) => {
+      if (filters.pinnedOnly && !pinned.has(s.ticker)) return false;
       if (filters.shariahOnly && !s.isShariah) return false;
+      // Unknown market cap can't clear the bar, so it fails the filter.
+      if (
+        filters.bluechipOnly &&
+        (s.marketCap === null || s.marketCap < BLUECHIP_MIN_MARKET_CAP)
+      )
+        return false;
       if (filters.sectors.length > 0 && !filters.sectors.includes(s.sector))
         return false;
       return true;
     });
-  }, [data, filters]);
+  }, [data, filters, pinned]);
 
   return (
     <div className="flex h-full flex-1 flex-col overflow-hidden">
       <Header />
 
-      <div className="scrollbar-thin mx-auto flex w-full max-w-7xl min-h-0 flex-1 flex-col overflow-y-auto px-4 py-6 sm:px-6 lg:overflow-hidden">
+      <div className="scrollbar-thin mx-auto flex w-full max-w-350 min-h-0 flex-1 flex-col overflow-y-auto px-4 py-6 sm:px-6 lg:overflow-hidden">
         {isError ? (
           <div className="rounded-xl border border-destructive/40 bg-destructive/5 p-6 text-sm">
             <p className="mb-3 text-destructive">Failed to load stocks.</p>
@@ -44,12 +55,18 @@ export function Screener() {
           </div>
         ) : (
           <div className="flex min-h-0 flex-1 flex-col gap-6 lg:flex-row lg:items-stretch">
-            <FilterSidebar filters={filters} onChange={setFilters} />
+            <FilterSidebar
+              filters={filters}
+              onChange={setFilters}
+              pinnedCount={pinned.size}
+            />
             <div className="flex min-h-0 min-w-0 flex-1 flex-col">
               <StockTable
                 data={filtered}
                 isLoading={isLoading}
                 showShariahBadge={!filters.shariahOnly}
+                pinned={pinned}
+                onTogglePin={togglePin}
               />
             </div>
           </div>
